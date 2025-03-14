@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8">
+    <title>拡張ToDoリストアプリ</title>
+    <!-- Bootstrap CSS (CDN) -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+      body {
+        padding-top: 50px;
+        background-color: #f8f9fa;
+      }
+      .container {
+        max-width: 1200px;
+      }
+      .card {
+        margin-bottom: 20px;
+      }
+      .task-header {
+        margin-bottom: 20px;
+      }
+      /* 優先度による色分け */
+      .priority-high {
+        border-left: 5px solid #d9534f;
+      }
+      .priority-medium {
+        border-left: 5px solid #f0ad4e;
+      }
+      .priority-low {
+        border-left: 5px solid #5cb85c;
+      }
+      /* 進捗バーのスタイル */
+      .progress {
+        height: 10px;
+        margin-top: 5px;
+      }
+      /* カテゴリタグのスタイル */
+      .category-tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        margin-right: 8px;
+        background-color: #e9ecef;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="text-center mb-4">拡張ToDoリスト</h1>
+      
+      <!-- ナビゲーション：カレンダー表示へのリンク -->
+      <div class="mb-4 d-flex justify-content-between align-items-center">
+        <div>
+          <a href="{{ url_for('calendar') }}" class="btn btn-info">
+            <i class="fas fa-calendar-alt mr-1"></i> カレンダー表示
+          </a>
+        </div>
+        
+        <!-- 検索フォーム -->
+        <div class="d-flex">
+          <form action="{{ url_for('index') }}" method="get" class="form-inline">
+            {% if current_category %}
+            <input type="hidden" name="category" value="{{ current_category }}">
+            {% endif %}
+            <div class="input-group">
+              <input type="text" name="search" class="form-control" placeholder="タスクを検索..." value="{{ search_query }}">
+              <div class="input-group-append">
+                <button type="submit" class="btn btn-outline-secondary">
+                  <i class="fas fa-search"></i>
+                </button>
+              </div>
+            </div>
+          </form>
+          
+          <!-- カテゴリフィルター -->
+          <div class="dropdown ml-2">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="categoryDropdown" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+              <i class="fas fa-filter mr-1"></i> カテゴリ
+            </button>
+            <div class="dropdown-menu" aria-labelledby="categoryDropdown">
+              <a class="dropdown-item" href="{{ url_for('index', search=search_query) }}">すべて</a>
+              {% for category in categories %}
+              <a class="dropdown-item" href="{{ url_for('index', category=category.id, search=search_query) }}">{{ category.name }}</a>
+              {% endfor %}
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item" href="#" data-toggle="modal" data-target="#addCategoryModal">
+                <i class="fas fa-plus-circle mr-1"></i> カテゴリを追加
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- タスク追加フォーム -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <form action="{{ url_for('add_task') }}" method="post">
+            <div class="form-row">
+              <div class="form-group col-md-5">
+                <label for="task">タスク</label>
+                <input type="text" name="task" id="task" class="form-control" placeholder="タスクを入力" required>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="deadline">期限</label>
+                <input type="date" name="deadline" id="deadline" class="form-control" required>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="priority">優先度</label>
+                <select name="priority" id="priority" class="form-control">
+                  <option value="高">高</option>
+                  <option value="中" selected>中</option>
+                  <option value="低">低</option>
+                </select>
+              </div>
+              <div class="form-group col-md-2">
+                <label for="category_id">カテゴリ</label>
+                <select name="category_id" id="category_id" class="form-control">
+                  <option value="">選択なし</option>
+                  {% for category in categories %}
+                  <option value="{{ category.id }}">{{ category.name }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="form-group col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">追加</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      
+      <!-- タスク一覧：未完了タスクと完了タスクを横並びで表示 -->
+      <div class="row">
+        <!-- 未完了タスク -->
+        <div class="col-md-6">
+          <h2 class="task-header">未完了タスク</h2>
+          <ul class="list-group">
+            {% for task in tasks %}
+              <li class="list-group-item priority-{{ 'high' if task.priority == '高' else 'medium' if task.priority == '中' else 'low' }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <strong>{{ task.task }}</strong>
+                    <div class="text-muted">
+                      <small>期限: {{ task.deadline }}</small>
+                      {% if task.category %}
+                      <span class="category-tag">{{ task.category.name }}</span>
+                      {% endif %}
+                      <span class="badge {{ 'badge-danger' if task.priority == '高' else 'badge-warning' if task.priority == '中' else 'badge-success' }}">
+                        {{ task.priority }}
+                      </span>
+                    </div>
+                    
+                    <!-- 進捗バー -->
+                    <div class="progress">
+                      <div class="progress-bar" role="progressbar" style="width: {{ task.progress }}%;" 
+                          aria-valuenow="{{ task.progress }}" aria-valuemin="0" aria-valuemax="100">
+                        {{ task.progress }}%
+                      </div>
+                    </div>
+                  </div>
+                  <div class="d-flex flex-column align-items-end">
+                    <div class="btn-group mb-2">
+                      <a href="{{ url_for('mark_done', task_id=task.id) }}" class="btn btn-success btn-sm">
+                        <i class="fas fa-check"></i>
+                      </a>
+                      <button type="button" class="btn btn-info btn-sm progress-btn" data-id="{{ task.id }}" data-progress="{{ task.progress }}">
+                        <i class="fas fa-tasks"></i>
+                      </button>
+                      <a href="{{ url_for('delete_task', task_id=task.id) }}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </li>
+            {% else %}
+              <li class="list-group-item text-center text-muted">未完了タスクはありません</li>
+            {% endfor %}
+          </ul>
+        </div>
+        
+        <!-- 完了タスク -->
+        <div class="col-md-6">
+          <h2 class="task-header">完了タスク</h2>
+          <ul class="list-group">
+            {% for task in completed_tasks %}
+              <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    <s>{{ task.task }}</s>
+                    <div class="text-muted">
+                      <small>期限: {{ task.deadline }}</small>
+                      {% if task.category %}
+                      <span class="category-tag">{{ task.category.name }}</span>
+                      {% endif %}
+                    </div>
+                  </div>
+                  <div>
+                    <a href="{{ url_for('restore_task', task_id=task.id) }}" class="btn btn-warning btn-sm">
+                      <i class="fas fa-undo"></i>
+                    </a>
+                    <a href="{{ url_for('delete_completed_task', task_id=task.id) }}" class="btn btn-danger btn-sm ml-1">
+                      <i class="fas fa-trash"></i>
+                    </a>
+                  </div>
+                </div>
+              </li>
+            {% else %}
+              <li class="list-group-item text-center text-muted">完了タスクはありません</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      
+    </div>
+    
+    <!-- 進捗更新モーダル -->
+    <div class="modal fade" id="progressModal" tabindex="-1" role="dialog" aria-labelledby="progressModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="progressModalLabel">進捗を更新</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form id="progressForm">
+              <input type="hidden" id="taskId" name="taskId">
+              <div class="form-group">
+                <label for="progressRange">進捗率: <span id="progressValue">0</span>%</label>
+                <input type="range" class="form-control-range" id="progressRange" min="0" max="100" step="5">
+              </div>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">キャンセル</button>
+            <button type="button" class="btn btn-primary" id="saveProgressBtn">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- カテゴリ追加モーダル -->
+    <div class="modal fade" id="addCategoryModal" tabindex="-1" role="dialog" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addCategoryModalLabel">カテゴリを追加</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <form action="{{ url_for('add_category') }}" method="post">
+              <div class="form-group">
+                <label for="categoryName">カテゴリ名</label>
+                <input type="text" class="form-control" id="categoryName" name="name" required>
+              </div>
+              <button type="submit" class="btn btn-primary">追加</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bootstrap JS, Popper.js, jQuery (CDN) -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    
+    <script>
+      $(document).ready(function() {
+        // 進捗更新モーダル
+        $('.progress-btn').click(function() {
+          const taskId = $(this).data('id');
+          const progress = $(this).data('progress');
+          
+          $('#taskId').val(taskId);
+          $('#progressRange').val(progress);
+          $('#progressValue').text(progress);
+          
+          $('#progressModal').modal('show');
+        });
+        
+        // 進捗スライダーの値を表示
+        $('#progressRange').on('input', function() {
+          $('#progressValue').text($(this).val());
+        });
+        
+        // 進捗の保存
+        $('#saveProgressBtn').click(function() {
+          const taskId = $('#taskId').val();
+          const progress = $('#progressRange').val();
+          
+          $.ajax({
+            url: `/update_progress/${taskId}`,
+            method: 'POST',
+            data: { progress: progress },
+            success: function() {
+              $('#progressModal').modal('hide');
+              window.location.reload();
+            },
+            error: function() {
+              alert('進捗の更新に失敗しました。');
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,4 @@
+Flask==2.2.5
+SQLAlchemy==1.4.46
+Flask-SQLAlchemy==3.0.3
+pywebview==4.0.2
