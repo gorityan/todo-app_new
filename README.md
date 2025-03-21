@@ -19,7 +19,7 @@ Python 3.7以上
 
 リポジトリをクローン:
 
-コピーgit clone https://github.com/YourUsername/todo-app.git
+コピーgit clone https://github.com/gorityan/todo-app.git
 cd todo-app
 
 必要なパッケージをインストール:
