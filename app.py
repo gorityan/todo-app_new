@@ -4,6 +4,7 @@ import os
 
 app = Flask(__name__)
 
+
 # SQLite データベースの設定
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.abspath(os.path.dirname(__file__)), 'todo.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
